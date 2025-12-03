@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# huuhuu? 管理画面
 
-## Getting Started
+huuhuu? アプリの管理画面です。Next.js + Convex + Clerk で構築されています。
 
-First, run the development server:
+## セットアップ
+
+### 1. Clerkの設定
+
+1. [Clerk Dashboard](https://dashboard.clerk.com/) にアクセス
+2. モバイルアプリと同じアプリケーションを選択（または新規作成）
+3. **API Keys** から以下をコピー:
+   - `Publishable Key` → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `Secret Key` → `CLERK_SECRET_KEY`
+
+4. `.env.local` を編集して上記のキーを設定
+
+### 2. 初期管理者の設定
+
+Convexダッシュボードから初期管理者を設定します：
+
+1. [Convex Dashboard](https://dashboard.convex.dev/) にアクセス
+2. プロジェクト `moonlit-narwhal-144` を選択
+3. **Functions** タブで `admin:initializeSuperAdmin` を実行
+4. 引数に自分のメールアドレスを入力:
+   ```json
+   { "email": "your-email@example.com" }
+   ```
+
+### 3. 開発サーバーの起動
 
 ```bash
+cd oneday-talk-admin
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000 にアクセス
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 機能
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **ダッシュボード**: ユーザー数、コミュニティ数、セッション数などの統計
+- **コミュニティ管理**: 公式コミュニティの作成・編集
+- **イベント管理**: コミュニティイベントの管理
+- **メディア管理**: お知らせや広告の管理
+- **ユーザー管理**: ユーザー一覧の表示
+- **管理者設定**: 管理者の追加・削除（super_admin のみ）
 
-## Learn More
+## 管理者権限
 
-To learn more about Next.js, take a look at the following resources:
+- **super_admin**: 全権限（他の管理者の追加・削除も可能）
+- **admin**: 通常の管理権限（コミュニティ・イベント・メディアの管理）
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## デプロイ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Vercelにデプロイする場合：
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. GitHubにプッシュ
+2. Vercelでプロジェクトをインポート
+3. 環境変数を設定:
+   - `NEXT_PUBLIC_CONVEX_URL`
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `CLERK_SECRET_KEY`
