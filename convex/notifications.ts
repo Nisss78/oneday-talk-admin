@@ -74,7 +74,7 @@ export const sendPushNotification = internalAction({
     body: v.string(),
     data: v.optional(v.any()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; reason?: string }> => {
     // ユーザーのpushTokenを取得
     const user = await ctx.runQuery((internal as any).notifications.getUserForPush, {
       userId: args.targetUserId,
@@ -148,7 +148,7 @@ export const sendMessageNotification = action({
     senderName: v.string(),
     messagePreview: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; reason?: string }> => {
     return await ctx.runAction((internal as any).notifications.sendPushNotification, {
       targetUserId: args.recipientUserId,
       title: `返信を見逃していませんか？`,
@@ -166,7 +166,7 @@ export const sendFriendRequestNotification = action({
     recipientUserId: v.id("users"),
     senderName: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; reason?: string }> => {
     return await ctx.runAction((internal as any).notifications.sendPushNotification, {
       targetUserId: args.recipientUserId,
       title: `友達申請が届いています`,
@@ -184,7 +184,7 @@ export const sendMatchNotification = action({
     recipientUserId: v.id("users"),
     matchedUserName: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; reason?: string }> => {
     return await ctx.runAction((internal as any).notifications.sendPushNotification, {
       targetUserId: args.recipientUserId,
       title: `今日のマッチを見逃さないで!`,

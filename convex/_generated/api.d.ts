@@ -9,6 +9,7 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as communities from "../communities.js";
@@ -45,6 +46,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  analytics: typeof analytics;
   auth: typeof auth;
   chat: typeof chat;
   communities: typeof communities;

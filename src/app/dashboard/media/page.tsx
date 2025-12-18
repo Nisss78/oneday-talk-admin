@@ -2,8 +2,8 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { Image, Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, Megaphone, Info, Bell } from "lucide-react";
-import { useState } from "react";
+import { Image, Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, Megaphone, Info, Bell, Upload, X, Loader2 } from "lucide-react";
+import { useState, useRef } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 const mediaTypeLabels = {
@@ -18,10 +18,15 @@ export default function MediaPage() {
   const createMedia = useMutation(api.admin.createMediaForAdmin);
   const updateMedia = useMutation(api.admin.updateMediaForAdmin);
   const deleteMedia = useMutation(api.admin.deleteMediaForAdmin);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingMedia, setEditingMedia] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // フォームの状態
   const [formData, setFormData] = useState({
@@ -47,6 +52,79 @@ export default function MediaPage() {
       isPublished: false,
     });
     setEditingMedia(null);
+    setUploadedImageUrl(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // 画像アップロード処理
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // ファイルサイズチェック (5MB以下)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("画像サイズは5MB以下にしてください");
+      return;
+    }
+
+    // 画像形式チェック
+    if (!file.type.startsWith("image/")) {
+      alert("画像ファイルを選択してください");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // プレビュー表示
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Convexにアップロード
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!response.ok) {
+        throw new Error("アップロードに失敗しました");
+      }
+
+      const { storageId } = await response.json();
+
+      // ストレージIDからURLを取得
+      // Convexではファイルを保存するとstorageIdが返されるが、URLはgetUrl経由で取得
+      // ここでは、imageUrlフィールドにstorageIdを保存し、表示時に変換する
+      // または、直接URLを取得する方法を使う
+      const imageUrl = `https://vibrant-horse-132.convex.cloud/api/storage/${storageId}`;
+      setUploadedImageUrl(imageUrl);
+      setFormData(prev => ({ ...prev, imageUrl }));
+
+    } catch (error) {
+      console.error("Upload error:", error);
+      alert("画像のアップロードに失敗しました");
+      setImagePreview(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 画像を削除
+  const handleRemoveImage = () => {
+    setUploadedImageUrl(null);
+    setImagePreview(null);
+    setFormData(prev => ({ ...prev, imageUrl: "" }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const openCreateModal = () => {
@@ -66,6 +144,11 @@ export default function MediaPage() {
       priority: item.priority || 0,
       isPublished: item.isPublished,
     });
+    // 既存の画像がある場合はプレビューに設定
+    if (item.imageUrl) {
+      setImagePreview(item.imageUrl);
+      setUploadedImageUrl(item.imageUrl);
+    }
     setShowCreateModal(true);
   };
 
@@ -355,14 +438,49 @@ export default function MediaPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  画像URL
+                  画像
                 </label>
+                {imagePreview ? (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="プレビュー"
+                      className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                      title="画像を削除"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-teal-500 hover:bg-teal-50 transition-colors"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-8 w-8 text-teal-500 animate-spin mb-2" />
+                        <span className="text-sm text-gray-500">アップロード中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                        <span className="text-sm text-gray-500">クリックして画像をアップロード</span>
+                        <span className="text-xs text-gray-400 mt-1">PNG, JPG, GIF（5MB以下）</span>
+                      </>
+                    )}
+                  </div>
+                )}
                 <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
-                  placeholder="https://..."
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
                 />
               </div>
 

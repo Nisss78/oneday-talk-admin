@@ -11,14 +11,18 @@ import {
   Image,
   Settings,
   Shield,
+  BarChart3,
+  Download,
 } from "lucide-react";
 
 const navigation = [
   { name: "ダッシュボード", href: "/dashboard", icon: LayoutDashboard },
+  { name: "アナリティクス", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "コミュニティ", href: "/dashboard/communities", icon: Building2 },
   { name: "イベント", href: "/dashboard/events", icon: Calendar },
   { name: "メディア", href: "/dashboard/media", icon: Image },
   { name: "ユーザー", href: "/dashboard/users", icon: Users },
+  { name: "エクスポート", href: "/dashboard/operations", icon: Download },
   { name: "管理者設定", href: "/dashboard/admins", icon: Shield },
 ];
 

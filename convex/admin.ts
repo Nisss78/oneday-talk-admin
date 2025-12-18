@@ -258,7 +258,7 @@ export const listUsers = query({
     const limit = args.limit || 50;
     const users = await ctx.db.query("users").take(limit);
 
-    // 各ユーザーのプロファイルを取得
+    // 各ユーザーのプロファイルを取得（avatarUrlをストレージURLに変換）
     const usersWithProfiles = await Promise.all(
       users.map(async (user) => {
         const profile = await ctx.db
@@ -266,9 +266,25 @@ export const listUsers = query({
           .withIndex("by_user_id", (q) => q.eq("userId", user._id))
           .first();
 
+        // avatarUrlがストレージIDの場合、実際のURLに変換
+        let avatarUrl: string | null = null;
+        if (profile?.avatarUrl) {
+          try {
+            // ストレージIDからURLを取得
+            const url = await ctx.storage.getUrl(profile.avatarUrl as any);
+            avatarUrl = url;
+          } catch {
+            // 変換に失敗した場合は元の値を使用（外部URLの可能性）
+            avatarUrl = profile.avatarUrl;
+          }
+        }
+
         return {
           ...user,
-          profile,
+          profile: profile ? {
+            ...profile,
+            avatarUrl,
+          } : null,
         };
       })
     );
@@ -757,6 +773,209 @@ export const initializeSuperAdmin = mutation({
       email: args.email,
       role: "super_admin",
       createdAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// ========== イベント申請管理 ==========
+
+/**
+ * イベント申請一覧を取得（管理者用）
+ */
+export const listEventRequests = query({
+  args: {
+    status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    communityId: v.optional(v.id("communities")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email) {
+      throw new Error("認証が必要です");
+    }
+
+    const callerAdmin = await ctx.db
+      .query("admins")
+      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .first();
+
+    if (!callerAdmin) {
+      throw new Error("管理者権限が必要です");
+    }
+
+    // 公式コミュニティのIDリストを取得
+    const officialCommunities = await ctx.db
+      .query("communities")
+      .filter((q) => q.eq(q.field("isOfficial"), true))
+      .collect();
+    const officialCommunityIds = officialCommunities.map((c) => c._id);
+
+    let requests;
+    if (args.communityId) {
+      // 特定のコミュニティの申請のみ
+      if (args.status) {
+        requests = await ctx.db
+          .query("communityEventRequests")
+          .withIndex("by_community_status", (q) =>
+            q.eq("communityId", args.communityId!).eq("status", args.status!)
+          )
+          .collect();
+      } else {
+        requests = await ctx.db
+          .query("communityEventRequests")
+          .withIndex("by_community", (q) => q.eq("communityId", args.communityId!))
+          .collect();
+      }
+    } else {
+      // 全公式コミュニティの申請
+      if (args.status) {
+        requests = await ctx.db
+          .query("communityEventRequests")
+          .withIndex("by_status", (q) => q.eq("status", args.status!))
+          .collect();
+      } else {
+        requests = await ctx.db.query("communityEventRequests").collect();
+      }
+      // 公式コミュニティのみフィルタ
+      requests = requests.filter((r) => officialCommunityIds.includes(r.communityId));
+    }
+
+    // 申請者情報とコミュニティ情報を付与
+    const requestsWithDetails = await Promise.all(
+      requests.map(async (request) => {
+        const requester = await ctx.db.get(request.requesterId);
+        const profile = requester
+          ? await ctx.db
+              .query("profiles")
+              .withIndex("by_user_id", (q) => q.eq("userId", requester._id))
+              .first()
+          : null;
+        const community = await ctx.db.get(request.communityId);
+
+        return {
+          ...request,
+          requester: requester
+            ? {
+                _id: requester._id,
+                handle: requester.handle,
+                displayName: profile?.displayName ?? requester.handle,
+                avatarUrl: profile?.avatarUrl,
+              }
+            : null,
+          communityName: community?.name || "不明",
+        };
+      })
+    );
+
+    // 新しい順にソート
+    requestsWithDetails.sort((a, b) => b.createdAt - a.createdAt);
+
+    return requestsWithDetails;
+  },
+});
+
+/**
+ * イベント申請を承認（管理者用）
+ */
+export const approveEventRequest = mutation({
+  args: {
+    requestId: v.id("communityEventRequests"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email) {
+      throw new Error("認証が必要です");
+    }
+
+    const callerAdmin = await ctx.db
+      .query("admins")
+      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .first();
+
+    if (!callerAdmin) {
+      throw new Error("管理者権限が必要です");
+    }
+
+    const request = await ctx.db.get(args.requestId);
+    if (!request) {
+      throw new Error("申請が見つかりません");
+    }
+
+    if (request.status !== "pending") {
+      throw new Error("審査待ちの申請のみ承認できます");
+    }
+
+    const now = Date.now();
+
+    // 申請を承認状態に更新
+    await ctx.db.patch(args.requestId, {
+      status: "approved",
+      reviewedBy: callerAdmin.userId,
+      reviewedAt: now,
+      updatedAt: now,
+    });
+
+    // communityEventsに新規イベントとして登録（公開状態で）
+    const eventId = await ctx.db.insert("communityEvents", {
+      communityId: request.communityId,
+      title: request.title,
+      description: request.description,
+      imageUrl: request.imageUrl,
+      eventDate: request.eventDate,
+      eventEndDate: request.eventEndDate,
+      location: request.location,
+      externalUrl: request.externalUrl,
+      isPublished: true, // 承認されたら自動で公開
+      createdBy: request.requesterId, // 元の申請者をcreatedByに
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { success: true, eventId };
+  },
+});
+
+/**
+ * イベント申請を却下（管理者用）
+ */
+export const rejectEventRequest = mutation({
+  args: {
+    requestId: v.id("communityEventRequests"),
+    rejectionReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email) {
+      throw new Error("認証が必要です");
+    }
+
+    const callerAdmin = await ctx.db
+      .query("admins")
+      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .first();
+
+    if (!callerAdmin) {
+      throw new Error("管理者権限が必要です");
+    }
+
+    const request = await ctx.db.get(args.requestId);
+    if (!request) {
+      throw new Error("申請が見つかりません");
+    }
+
+    if (request.status !== "pending") {
+      throw new Error("審査待ちの申請のみ却下できます");
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(args.requestId, {
+      status: "rejected",
+      rejectionReason: args.rejectionReason,
+      reviewedBy: callerAdmin.userId,
+      reviewedAt: now,
+      updatedAt: now,
     });
 
     return { success: true };

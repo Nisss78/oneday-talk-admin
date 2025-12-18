@@ -243,6 +243,33 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_email", ["email"]),
 
+  // コミュニティイベント申請（メンバーからの申請）
+  communityEventRequests: defineTable({
+    communityId: v.id("communities"),
+    requesterId: v.id("users"), // 申請者
+    title: v.string(),
+    description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()), // Convex Storage ID
+    eventDate: v.number(), // イベント開催日時
+    eventEndDate: v.optional(v.number()), // イベント終了日時
+    location: v.optional(v.string()), // 開催場所
+    externalUrl: v.optional(v.string()), // 外部リンク
+    status: v.union(
+      v.literal("pending"), // 審査待ち
+      v.literal("approved"), // 承認済み
+      v.literal("rejected") // 却下
+    ),
+    rejectionReason: v.optional(v.string()), // 却下理由
+    reviewedBy: v.optional(v.id("users")), // 審査者
+    reviewedAt: v.optional(v.number()), // 審査日時
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_requester", ["requesterId"])
+    .index("by_community_status", ["communityId", "status"])
+    .index("by_status", ["status"]),
+
   // メール認証（公式コミュニティ用）
   emailVerifications: defineTable({
     userId: v.id("users"),
