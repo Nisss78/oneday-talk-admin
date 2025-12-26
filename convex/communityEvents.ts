@@ -137,20 +137,25 @@ export const createEvent = mutation({
     }
 
     const now = Date.now();
-    const eventId = await ctx.db.insert("communityEvents", {
+
+    // undefinedのフィールドを除外してinsert
+    const eventData: Record<string, unknown> = {
       communityId: args.communityId,
       title: args.title,
-      description: args.description,
-      imageUrl: args.imageUrl,
       eventDate: args.eventDate,
-      eventEndDate: args.eventEndDate,
-      location: args.location,
-      externalUrl: args.externalUrl,
       isPublished: args.isPublished ?? false,
       createdBy: user._id,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+
+    if (args.description) eventData.description = args.description;
+    if (args.imageUrl) eventData.imageUrl = args.imageUrl;
+    if (args.eventEndDate) eventData.eventEndDate = args.eventEndDate;
+    if (args.location) eventData.location = args.location;
+    if (args.externalUrl) eventData.externalUrl = args.externalUrl;
+
+    const eventId = await ctx.db.insert("communityEvents", eventData as any);
 
     return { eventId };
   },
@@ -199,11 +204,21 @@ export const updateEvent = mutation({
       throw new Error("管理者権限がありません");
     }
 
-    const { eventId, ...updateFields } = args;
-    await ctx.db.patch(args.eventId, {
-      ...updateFields,
+    // undefinedのフィールドを除外してpatch
+    const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
-    });
+    };
+
+    if (args.title !== undefined) updates.title = args.title;
+    if (args.description !== undefined) updates.description = args.description;
+    if (args.imageUrl !== undefined) updates.imageUrl = args.imageUrl;
+    if (args.eventDate !== undefined) updates.eventDate = args.eventDate;
+    if (args.eventEndDate !== undefined) updates.eventEndDate = args.eventEndDate;
+    if (args.location !== undefined) updates.location = args.location;
+    if (args.externalUrl !== undefined) updates.externalUrl = args.externalUrl;
+    if (args.isPublished !== undefined) updates.isPublished = args.isPublished;
+
+    await ctx.db.patch(args.eventId, updates);
 
     return { success: true };
   },
@@ -289,5 +304,31 @@ export const listAllEvents = query({
     events.sort((a, b) => a.eventDate - b.eventDate);
 
     return { events };
+  },
+});
+
+// ========== 公開API（認証不要） ==========
+
+// 公開イベント一覧を取得（ランディングページ用・認証不要）
+export const listPublicEvents = query({
+  args: {
+    communityId: v.id("communities"),
+  },
+  handler: async (ctx, args) => {
+    // 認証不要 - 公開イベントのみ取得
+    const now = Date.now();
+    const events = await ctx.db
+      .query("communityEvents")
+      .withIndex("by_community_published", (q) =>
+        q.eq("communityId", args.communityId).eq("isPublished", true)
+      )
+      .collect();
+
+    // 今後のイベントのみをフィルタリングして日付順にソート
+    const upcomingEvents = events
+      .filter((e) => e.eventDate >= now || (e.eventEndDate && e.eventEndDate >= now))
+      .sort((a, b) => a.eventDate - b.eventDate);
+
+    return upcomingEvents;
   },
 });

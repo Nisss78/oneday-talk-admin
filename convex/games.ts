@@ -164,17 +164,18 @@ export const submitMbti = mutation({
     await ctx.db.patch(game._id, updateData);
 
     // 初回送信の場合のみ、チャットメッセージとして招待を送信
+    // 注意: MBTIタイプは両者が送信完了するまで非公開にする
     if (!hadPreviousSubmission) {
       await ctx.db.insert("messages", {
         sessionId: args.sessionId,
         senderId: user._id,
-        text: `🧠 MBTI相性診断に参加しました！（${args.mbtiType}）`,
+        text: `🧠 MBTI相性診断に参加しました！`,
         createdAt: Date.now(),
         readBy: [user._id],
         type: "game_invite",
         gameType: "mbti_compatibility",
         gameId: game._id,
-        senderMbti: args.mbtiType,
+        // senderMbtiは送信しない（結果が出るまで非公開）
       });
     }
 
@@ -257,13 +258,22 @@ export const getMbtiGame = query({
 
     if (!game) return null;
 
+    const myMbti = isUserA ? game.userAMbti : game.userBMbti;
+    const partnerMbti = isUserA ? game.userBMbti : game.userAMbti;
+    const isCompleted = game.status === "completed";
+
     // 自分と相手のMBTIを返す
+    // 両者が送信完了（結果が出る）まではMBTIタイプを非公開にする
     return {
       gameId: game._id,
       status: game.status,
-      myMbti: isUserA ? game.userAMbti : game.userBMbti,
-      partnerMbti: isUserA ? game.userBMbti : game.userAMbti,
-      hasPartnerSubmitted: isUserA ? !!game.userBMbti : !!game.userAMbti,
+      // 自分がMBTIを送信済みかどうか（選択済みフラグ）
+      hasSubmitted: !!myMbti,
+      // 相手がMBTIを送信済みかどうか
+      hasPartnerSubmitted: !!partnerMbti,
+      // 完了後のみMBTIタイプを公開
+      myMbti: isCompleted ? myMbti : undefined,
+      partnerMbti: isCompleted ? partnerMbti : undefined,
       result: game.result,
     };
   },

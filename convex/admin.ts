@@ -445,13 +445,17 @@ export const listEventsForAdmin = query({
 export const createEventForAdmin = mutation({
   args: {
     communityId: v.id("communities"),
+    organizationName: v.optional(v.string()), // 団体名
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     eventDate: v.number(),
     eventEndDate: v.optional(v.number()),
     location: v.optional(v.string()),
+    locationUrl: v.optional(v.string()), // 開催場所URL（Google Mapsなど）
+    participationFee: v.optional(v.string()), // 参加費
     externalUrl: v.optional(v.string()),
+    applicationUrl: v.optional(v.string()), // イベント申請URL
     isPublished: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -475,20 +479,30 @@ export const createEventForAdmin = mutation({
     }
 
     const now = Date.now();
-    const eventId = await ctx.db.insert("communityEvents", {
+
+    // undefinedのフィールドを除外してinsert
+    const eventData: Record<string, unknown> = {
       communityId: args.communityId,
       title: args.title,
-      description: args.description,
-      imageUrl: args.imageUrl,
-      eventDate: args.eventDate,
-      eventEndDate: args.eventEndDate,
-      location: args.location,
-      externalUrl: args.externalUrl,
       isPublished: args.isPublished ?? false,
       createdBy: callerAdmin.userId,
       createdAt: now,
       updatedAt: now,
-    });
+      eventDate: args.eventDate,
+    };
+
+    // オプショナルフィールドは値がある場合のみ追加
+    if (args.organizationName) eventData.organizationName = args.organizationName;
+    if (args.description) eventData.description = args.description;
+    if (args.imageUrl) eventData.imageUrl = args.imageUrl;
+    if (args.eventEndDate) eventData.eventEndDate = args.eventEndDate;
+    if (args.location) eventData.location = args.location;
+    if (args.locationUrl) eventData.locationUrl = args.locationUrl;
+    if (args.participationFee) eventData.participationFee = args.participationFee;
+    if (args.externalUrl) eventData.externalUrl = args.externalUrl;
+    if (args.applicationUrl) eventData.applicationUrl = args.applicationUrl;
+
+    const eventId = await ctx.db.insert("communityEvents", eventData as any);
 
     return { eventId };
   },
@@ -498,13 +512,17 @@ export const createEventForAdmin = mutation({
 export const updateEventForAdmin = mutation({
   args: {
     eventId: v.id("communityEvents"),
+    organizationName: v.optional(v.string()), // 団体名
     title: v.optional(v.string()),
     description: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     eventDate: v.optional(v.number()),
     eventEndDate: v.optional(v.number()),
     location: v.optional(v.string()),
+    locationUrl: v.optional(v.string()), // 開催場所URL（Google Mapsなど）
+    participationFee: v.optional(v.string()), // 参加費
     externalUrl: v.optional(v.string()),
+    applicationUrl: v.optional(v.string()), // イベント申請URL
     isPublished: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -527,11 +545,25 @@ export const updateEventForAdmin = mutation({
       throw new Error("イベントが見つかりません");
     }
 
-    const { eventId, ...updateFields } = args;
-    await ctx.db.patch(args.eventId, {
-      ...updateFields,
+    // undefinedのフィールドを除外してpatch
+    const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
-    });
+    };
+
+    if (args.organizationName !== undefined) updates.organizationName = args.organizationName;
+    if (args.title !== undefined) updates.title = args.title;
+    if (args.description !== undefined) updates.description = args.description;
+    if (args.imageUrl !== undefined) updates.imageUrl = args.imageUrl;
+    if (args.eventDate !== undefined) updates.eventDate = args.eventDate;
+    if (args.eventEndDate !== undefined) updates.eventEndDate = args.eventEndDate;
+    if (args.location !== undefined) updates.location = args.location;
+    if (args.locationUrl !== undefined) updates.locationUrl = args.locationUrl;
+    if (args.participationFee !== undefined) updates.participationFee = args.participationFee;
+    if (args.externalUrl !== undefined) updates.externalUrl = args.externalUrl;
+    if (args.applicationUrl !== undefined) updates.applicationUrl = args.applicationUrl;
+    if (args.isPublished !== undefined) updates.isPublished = args.isPublished;
+
+    await ctx.db.patch(args.eventId, updates);
 
     return { success: true };
   },
@@ -650,20 +682,25 @@ export const createMediaForAdmin = mutation({
     }
 
     const now = Date.now();
-    const mediaId = await ctx.db.insert("communityMedia", {
+
+    // undefinedのフィールドを除外してinsert
+    const mediaData: Record<string, unknown> = {
       communityId: args.communityId,
       title: args.title,
-      content: args.content,
-      imageUrl: args.imageUrl,
-      externalUrl: args.externalUrl,
       mediaType: args.mediaType,
       priority: args.priority ?? 0,
       isPublished: args.isPublished ?? false,
-      publishedAt: args.isPublished ? now : undefined,
       createdBy: callerAdmin.userId,
       createdAt: now,
       updatedAt: now,
-    });
+    };
+
+    if (args.content) mediaData.content = args.content;
+    if (args.imageUrl) mediaData.imageUrl = args.imageUrl;
+    if (args.externalUrl) mediaData.externalUrl = args.externalUrl;
+    if (args.isPublished) mediaData.publishedAt = now;
+
+    const mediaId = await ctx.db.insert("communityMedia", mediaData as any);
 
     return { mediaId };
   },
@@ -701,11 +738,18 @@ export const updateMediaForAdmin = mutation({
       throw new Error("メディアが見つかりません");
     }
 
-    const { mediaId, ...updateFields } = args;
+    // undefinedのフィールドを除外してpatch
     const updates: Record<string, unknown> = {
-      ...updateFields,
       updatedAt: Date.now(),
     };
+
+    if (args.title !== undefined) updates.title = args.title;
+    if (args.content !== undefined) updates.content = args.content;
+    if (args.imageUrl !== undefined) updates.imageUrl = args.imageUrl;
+    if (args.externalUrl !== undefined) updates.externalUrl = args.externalUrl;
+    if (args.mediaType !== undefined) updates.mediaType = args.mediaType;
+    if (args.priority !== undefined) updates.priority = args.priority;
+    if (args.isPublished !== undefined) updates.isPublished = args.isPublished;
 
     // 公開に変更された場合は公開日時を設定
     if (args.isPublished && !media.isPublished) {
@@ -917,20 +961,27 @@ export const approveEventRequest = mutation({
     });
 
     // communityEventsに新規イベントとして登録（公開状態で）
-    const eventId = await ctx.db.insert("communityEvents", {
+    // undefinedのフィールドを除外してinsert
+    const eventData: Record<string, unknown> = {
       communityId: request.communityId,
       title: request.title,
-      description: request.description,
-      imageUrl: request.imageUrl,
       eventDate: request.eventDate,
-      eventEndDate: request.eventEndDate,
-      location: request.location,
-      externalUrl: request.externalUrl,
       isPublished: true, // 承認されたら自動で公開
       createdBy: request.requesterId, // 元の申請者をcreatedByに
       createdAt: now,
       updatedAt: now,
-    });
+    };
+
+    if (request.organizationName) eventData.organizationName = request.organizationName;
+    if (request.description) eventData.description = request.description;
+    if (request.imageUrl) eventData.imageUrl = request.imageUrl;
+    if (request.eventEndDate) eventData.eventEndDate = request.eventEndDate;
+    if (request.location) eventData.location = request.location;
+    if (request.participationFee) eventData.participationFee = request.participationFee;
+    if (request.externalUrl) eventData.externalUrl = request.externalUrl;
+    if (request.applicationUrl) eventData.applicationUrl = request.applicationUrl;
+
+    const eventId = await ctx.db.insert("communityEvents", eventData as any);
 
     return { success: true, eventId };
   },

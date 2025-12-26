@@ -243,8 +243,25 @@ export const joinOfficialCommunity = mutation({
     );
 
     if (!isValidDomain) {
-      // ドメインが一致しない場合は、メール認証が必要
-      throw new Error("EMAIL_VERIFICATION_REQUIRED");
+      // プライマリメールが一致しない場合、過去に認証されたメールがあるかチェック
+      const verifiedEmails = await ctx.db
+        .query("emailVerifications")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", user._id).eq("status", "verified")
+        )
+        .collect();
+
+      // このコミュニティの必須ドメインで認証されたメールがあるか確認
+      const hasVerifiedDomainEmail = verifiedEmails.some((v) =>
+        community.requiredEmailDomains?.some(
+          (d) => d.toLowerCase() === v.domain.toLowerCase()
+        )
+      );
+
+      if (!hasVerifiedDomainEmail) {
+        // 認証されたメールもない場合は、メール認証が必要
+        throw new Error("EMAIL_VERIFICATION_REQUIRED");
+      }
     }
 
     // メンバー上限チェック

@@ -206,10 +206,6 @@ export const getById = query({
       .filter((q) => q.eq(q.field("status"), "active"))
       .unique();
 
-    if (!membership) {
-      throw new Error("Forbidden: You are not a member of this community");
-    }
-
     // メンバー数をカウント
     const allMemberships = await ctx.db
       .query("communityMemberships")
@@ -217,6 +213,29 @@ export const getById = query({
         q.eq("communityId", args.communityId).eq("status", "active")
       )
       .collect();
+
+    // メンバーでない場合は基本情報のみ返す
+    if (!membership) {
+      return {
+        _id: community._id,
+        name: community.name,
+        description: community.description,
+        avatarUrl: community.avatarUrl,
+        creatorId: community.creatorId,
+        adminIds: community.adminIds,
+        isActive: community.isActive,
+        isOfficial: community.isOfficial,
+        requiredEmailDomains: community.requiredEmailDomains,
+        maxMembers: community.maxMembers,
+        memberCount: allMemberships.length,
+        myRole: null,
+        isCreator: false,
+        isMember: false,
+        joinedAt: null,
+        createdAt: community.createdAt,
+        updatedAt: community.updatedAt,
+      };
+    }
 
     return {
       _id: community._id,

@@ -19,3 +19,18 @@ export const getImageUrl = query({
     return await ctx.storage.getUrl(args.storageId);
   },
 });
+
+/**
+ * 複数の画像URLを一括取得（プリロード用）
+ */
+export const getMultipleImageUrls = query({
+  args: {
+    storageIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const urls = await Promise.all(
+      args.storageIds.map(storageId => ctx.storage.getUrl(storageId))
+    );
+    return urls;
+  },
+});

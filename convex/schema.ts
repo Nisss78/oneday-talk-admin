@@ -195,13 +195,17 @@ export default defineSchema({
   // コミュニティイベント
   communityEvents: defineTable({
     communityId: v.id("communities"),
+    organizationName: v.optional(v.string()), // 団体名
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     eventDate: v.number(), // イベント開催日時（ミリ秒）
     eventEndDate: v.optional(v.number()), // イベント終了日時（オプション）
     location: v.optional(v.string()), // 開催場所
+    locationUrl: v.optional(v.string()), // 開催場所のURL（Google Mapsなど）
+    participationFee: v.optional(v.string()), // 参加費
     externalUrl: v.optional(v.string()), // 外部リンク（詳細ページや申込ページ）
+    applicationUrl: v.optional(v.string()), // イベント申請URL
     isPublished: v.boolean(), // 公開状態
     createdBy: v.id("users"), // 作成者（運営）
     createdAt: v.number(),
@@ -232,6 +236,18 @@ export default defineSchema({
     .index("by_community_published", ["communityId", "isPublished"])
     .index("by_community_priority", ["communityId", "priority"]),
 
+  // コミュニティメディア閲覧履歴
+  mediaViews: defineTable({
+    userId: v.id("users"),
+    mediaId: v.id("communityMedia"),
+    communityId: v.id("communities"),
+    viewedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_media", ["mediaId"])
+    .index("by_user_media", ["userId", "mediaId"])
+    .index("by_user_community", ["userId", "communityId"]),
+
   // 管理者（グローバル管理者 - コミュニティ管理者とは別）
   admins: defineTable({
     userId: v.id("users"),
@@ -247,13 +263,16 @@ export default defineSchema({
   communityEventRequests: defineTable({
     communityId: v.id("communities"),
     requesterId: v.id("users"), // 申請者
+    organizationName: v.optional(v.string()), // 団体名
     title: v.string(),
     description: v.optional(v.string()),
     imageUrl: v.optional(v.string()), // Convex Storage ID
     eventDate: v.number(), // イベント開催日時
     eventEndDate: v.optional(v.number()), // イベント終了日時
     location: v.optional(v.string()), // 開催場所
+    participationFee: v.optional(v.string()), // 参加費
     externalUrl: v.optional(v.string()), // 外部リンク
+    applicationUrl: v.optional(v.string()), // イベント申請URL
     status: v.union(
       v.literal("pending"), // 審査待ち
       v.literal("approved"), // 承認済み
@@ -269,6 +288,44 @@ export default defineSchema({
     .index("by_requester", ["requesterId"])
     .index("by_community_status", ["communityId", "status"])
     .index("by_status", ["status"]),
+
+  // ユーザーブロック
+  userBlocks: defineTable({
+    blockerId: v.id("users"),
+    blockedId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_blocker", ["blockerId"])
+    .index("by_blocked", ["blockedId"])
+    .index("by_blocker_blocked", ["blockerId", "blockedId"]),
+
+  // 通報
+  reports: defineTable({
+    reporterId: v.id("users"),
+    reportedUserId: v.id("users"),
+    sessionId: v.optional(v.id("dailySessions")),
+    reason: v.union(
+      v.literal("harassment"),
+      v.literal("spam"),
+      v.literal("inappropriate"),
+      v.literal("other")
+    ),
+    description: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("reviewed"),
+      v.literal("resolved"),
+      v.literal("dismissed")
+    ),
+    adminNote: v.optional(v.string()),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_reporter", ["reporterId"])
+    .index("by_reported", ["reportedUserId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
 
   // メール認証（公式コミュニティ用）
   emailVerifications: defineTable({

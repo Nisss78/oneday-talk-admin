@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { Calendar, Plus, MapPin, ExternalLink, Clock, Edit2, Trash2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, User, FileText } from "lucide-react";
+import { Calendar, Plus, MapPin, ExternalLink, Clock, Edit2, Trash2, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, User, FileText, Building2, Banknote, Link } from "lucide-react";
 import { useState } from "react";
 import { Id } from "../../../../convex/_generated/dataModel";
 
@@ -36,24 +36,32 @@ export default function EventsPage() {
   // フォームの状態
   const [formData, setFormData] = useState({
     communityId: "" as string,
+    organizationName: "",
     title: "",
     description: "",
     eventDate: "",
     eventEndDate: "",
     location: "",
+    locationUrl: "",
+    participationFee: "",
     externalUrl: "",
+    applicationUrl: "",
     isPublished: false,
   });
 
   const resetForm = () => {
     setFormData({
       communityId: "",
+      organizationName: "",
       title: "",
       description: "",
       eventDate: "",
       eventEndDate: "",
       location: "",
+      locationUrl: "",
+      participationFee: "",
       externalUrl: "",
+      applicationUrl: "",
       isPublished: false,
     });
     setEditingEvent(null);
@@ -68,12 +76,16 @@ export default function EventsPage() {
     setEditingEvent(event);
     setFormData({
       communityId: event.communityId,
+      organizationName: event.organizationName || "",
       title: event.title,
       description: event.description || "",
       eventDate: new Date(event.eventDate).toISOString().slice(0, 16),
       eventEndDate: event.eventEndDate ? new Date(event.eventEndDate).toISOString().slice(0, 16) : "",
       location: event.location || "",
+      locationUrl: event.locationUrl || "",
+      participationFee: event.participationFee || "",
       externalUrl: event.externalUrl || "",
+      applicationUrl: event.applicationUrl || "",
       isPublished: event.isPublished,
     });
     setShowCreateModal(true);
@@ -90,12 +102,16 @@ export default function EventsPage() {
       if (editingEvent) {
         await updateEvent({
           eventId: editingEvent._id,
+          organizationName: formData.organizationName || undefined,
           title: formData.title,
           description: formData.description || undefined,
           eventDate: new Date(formData.eventDate).getTime(),
           eventEndDate: formData.eventEndDate ? new Date(formData.eventEndDate).getTime() : undefined,
           location: formData.location || undefined,
+          locationUrl: formData.locationUrl || undefined,
+          participationFee: formData.participationFee || undefined,
           externalUrl: formData.externalUrl || undefined,
+          applicationUrl: formData.applicationUrl || undefined,
           isPublished: formData.isPublished,
         });
       } else {
@@ -106,12 +122,16 @@ export default function EventsPage() {
         }
         await createEvent({
           communityId: formData.communityId as Id<"communities">,
+          organizationName: formData.organizationName || undefined,
           title: formData.title,
           description: formData.description || undefined,
           eventDate: new Date(formData.eventDate).getTime(),
           eventEndDate: formData.eventEndDate ? new Date(formData.eventEndDate).getTime() : undefined,
           location: formData.location || undefined,
+          locationUrl: formData.locationUrl || undefined,
+          participationFee: formData.participationFee || undefined,
           externalUrl: formData.externalUrl || undefined,
+          applicationUrl: formData.applicationUrl || undefined,
           isPublished: formData.isPublished,
         });
       }
@@ -311,6 +331,22 @@ export default function EventsPage() {
                         <span className="text-xs px-2 py-1 bg-teal-100 text-teal-700 rounded-full">
                           {event.communityName}
                         </span>
+                        {event.organizationName && (
+                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full flex items-center">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {event.organizationName}
+                          </span>
+                        )}
+                        {event.participationFee && (
+                          <span className={`text-xs px-2 py-1 rounded-full flex items-center ${
+                            event.participationFee === "無料"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-orange-100 text-orange-700"
+                          }`}>
+                            <Banknote className="h-3 w-3 mr-1" />
+                            {event.participationFee}
+                          </span>
+                        )}
                         {event.isPublished ? (
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full flex items-center">
                             <Eye className="h-3 w-3 mr-1" />
@@ -357,6 +393,17 @@ export default function EventsPage() {
                           >
                             <ExternalLink className="h-4 w-4 mr-1" />
                             詳細リンク
+                          </a>
+                        )}
+                        {event.applicationUrl && (
+                          <a
+                            href={event.applicationUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-blue-600 hover:underline"
+                          >
+                            <Link className="h-4 w-4 mr-1" />
+                            申請リンク
                           </a>
                         )}
                       </div>
@@ -444,10 +491,26 @@ export default function EventsPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className="text-xs px-2 py-1 bg-teal-100 text-teal-700 rounded-full">
                           {request.communityName}
                         </span>
+                        {request.organizationName && (
+                          <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full flex items-center">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {request.organizationName}
+                          </span>
+                        )}
+                        {request.participationFee && (
+                          <span className={`text-xs px-2 py-1 rounded-full flex items-center ${
+                            request.participationFee === "無料"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-orange-100 text-orange-700"
+                          }`}>
+                            <Banknote className="h-3 w-3 mr-1" />
+                            {request.participationFee}
+                          </span>
+                        )}
                         {getStatusBadge(request.status)}
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -479,6 +542,17 @@ export default function EventsPage() {
                           >
                             <ExternalLink className="h-4 w-4 mr-1" />
                             詳細リンク
+                          </a>
+                        )}
+                        {request.applicationUrl && (
+                          <a
+                            href={request.applicationUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-blue-600 hover:underline"
+                          >
+                            <Link className="h-4 w-4 mr-1" />
+                            申請リンク
                           </a>
                         )}
                       </div>
@@ -556,7 +630,20 @@ export default function EventsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  タイトル *
+                  団体名
+                </label>
+                <input
+                  type="text"
+                  value={formData.organizationName}
+                  onChange={(e) => setFormData({ ...formData, organizationName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                  placeholder="主催団体名"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  企画名 *
                 </label>
                 <input
                   type="text"
@@ -607,7 +694,7 @@ export default function EventsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  場所
+                  開催場所
                 </label>
                 <input
                   type="text"
@@ -620,7 +707,33 @@ export default function EventsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  外部リンク
+                  場所URL（Google Mapsなど）
+                </label>
+                <input
+                  type="url"
+                  value={formData.locationUrl}
+                  onChange={(e) => setFormData({ ...formData, locationUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                  placeholder="https://maps.google.com/..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  参加費
+                </label>
+                <input
+                  type="text"
+                  value={formData.participationFee}
+                  onChange={(e) => setFormData({ ...formData, participationFee: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                  placeholder="無料 / 1,000円 など"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  外部リンク（詳細ページ）
                 </label>
                 <input
                   type="url"
@@ -628,6 +741,19 @@ export default function EventsPage() {
                   onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
                   placeholder="https://..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  申請URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.applicationUrl}
+                  onChange={(e) => setFormData({ ...formData, applicationUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                  placeholder="申請不要の場合は空欄"
                 />
               </div>
 

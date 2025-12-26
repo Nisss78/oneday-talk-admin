@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +13,8 @@ import {
   Shield,
   BarChart3,
   Download,
+  LogOut,
+  Flag,
 } from "lucide-react";
 
 const navigation = [
@@ -22,6 +24,7 @@ const navigation = [
   { name: "イベント", href: "/dashboard/events", icon: Calendar },
   { name: "メディア", href: "/dashboard/media", icon: Image },
   { name: "ユーザー", href: "/dashboard/users", icon: Users },
+  { name: "通報管理", href: "/dashboard/reports", icon: Flag },
   { name: "エクスポート", href: "/dashboard/operations", icon: Download },
   { name: "管理者設定", href: "/dashboard/admins", icon: Shield },
 ];
@@ -63,11 +66,17 @@ export function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-3">
         <div className="flex items-center">
           <UserButton afterSignOutUrl="/" />
           <span className="ml-3 text-sm text-gray-700">アカウント</span>
         </div>
+        <SignOutButton>
+          <button className="flex items-center w-full px-4 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+            <LogOut className="h-5 w-5 mr-3" />
+            ログアウト
+          </button>
+        </SignOutButton>
       </div>
     </div>
   );
